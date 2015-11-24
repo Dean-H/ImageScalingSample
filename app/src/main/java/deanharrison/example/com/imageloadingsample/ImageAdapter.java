@@ -3,6 +3,7 @@ package deanharrison.example.com.imageloadingsample;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.AsyncTask;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
@@ -32,6 +33,8 @@ public class ImageAdapter extends BaseAdapter{
 
     public ImageAdapter(Context context){
         mContext = context;
+
+        new BitmapBulkLoaderTask().execute(mThumbnails);    //kicks off the bulk loading task.
     }
 
 
@@ -73,8 +76,15 @@ public class ImageAdapter extends BaseAdapter{
          * during each run of the application watch the Memory log in your Android Studio
          */
 
-        //imageView.setImageResource(mThumbnails[position]);                //un-scaled image
-        new BitmapWorkerTask(imageView).execute(mThumbnails[position]);     //scaled image
+        //imageView.setImageResource(mThumbnails[position]);                    //un-scaled image
+        //new BitmapWorkerTask(imageView).execute(mThumbnails[position]);       //scaled image
+
+        /*
+            The below code works only if you load all the thumbnails in bulk using the bulk loader task.
+         */
+        if(mBitmaps != null && mBitmaps[position] != null){
+            imageView.setImageBitmap(mBitmaps[position]);
+        }
 
         return imageView;
     }
@@ -82,7 +92,7 @@ public class ImageAdapter extends BaseAdapter{
     /*
         An Array just to hold references to the images that will be used in the GridView
      */
-    private Integer[] mThumbnails = {
+    private static Integer[] mThumbnails = {
             R.drawable.hydrangea, R.drawable.jellyfishy,
             R.drawable.koalas, R.drawable.penguin,
             R.drawable.tulip, R.drawable.hydrangea, R.drawable.jellyfishy,
@@ -95,6 +105,8 @@ public class ImageAdapter extends BaseAdapter{
             R.drawable.koalas, R.drawable.penguin,
             R.drawable.tulip
     };
+
+    private Bitmap[] mBitmaps;
 
     /*
         Simple Async Task purely just to process the image scaling in the background,
@@ -132,6 +144,32 @@ public class ImageAdapter extends BaseAdapter{
                     imageView.setImageBitmap(bitmap);
                 }
             }
+        }
+    }
+
+    /*
+        Attempting a different approach using a single AsyncTask to load all of the Bitmaps before
+        displaying any of the images.
+
+        Works a little smoother and saves processing all the BitMaps as the user scrolls.
+
+     */
+    class BitmapBulkLoaderTask extends AsyncTask<Integer[], Void, Bitmap[]>{
+
+        @Override
+        protected Bitmap[] doInBackground(Integer[]... params) {
+            Integer[] thumbnails = params[0];
+            Bitmap[] bitmaps = new Bitmap[thumbnails.length];
+            for(int i =0; i < thumbnails.length; ++i){
+                bitmaps[i] = ImageUtils.decodeSampleBitmapFromResource(mContext.getResources(), thumbnails[i], mImageWidth, mImageHeight);
+            }
+            return bitmaps;
+        }
+
+        @Override
+        protected void onPostExecute(Bitmap[] bitmaps){
+            mBitmaps = bitmaps;
+            notifyDataSetChanged();
         }
     }
 }
